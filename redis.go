@@ -6,13 +6,41 @@ import (
 	_ "log"
 )
 
+type DeflateFunc func(pool.Item) (interface{}, error)
+
+type InflateFunc func(interface{}, error) (pool.Item, error)
+
 type RedisLIFOPool struct {
 	pool.LIFOPool
 	redis_pool *redigo.Pool
 	key        string
+	inflate    InflateFunc
+	deflate    DeflateFunc
 }
 
-func NewRedisLIFOPool(dsn string) (pool.LIFOPool, error) {
+func NewRedisLIFOIntPool(dsn string) (pool.LIFOPool, error) {
+
+	deflate := func(i pool.Item) (interface{}, error) {
+
+		return i.Int(), nil
+	}
+
+	inflate := func(rsp interface{}, err error) (pool.Item, error) {
+
+		i, err := redigo.Int64(rsp, err)
+
+		if err != nil {
+			return nil, err
+		}
+
+		pi := pool.NewIntItem(i)
+		return pi, nil
+	}
+
+	return NewRedisLIFOPool(dsn, deflate, inflate)
+}
+
+func NewRedisLIFOPool(dsn string, deflate DeflateFunc, inflate InflateFunc) (pool.LIFOPool, error) {
 
 	redis_pool := &redigo.Pool{
 		MaxActive: 1000,
@@ -33,6 +61,8 @@ func NewRedisLIFOPool(dsn string) (pool.LIFOPool, error) {
 	pl := RedisLIFOPool{
 		redis_pool: redis_pool,
 		key:        "debug",
+		inflate:    inflate,
+		deflate:    deflate,
 	}
 
 	return &pl, nil
@@ -53,9 +83,15 @@ func (pl *RedisLIFOPool) Length() int64 {
 
 // https://redis.io/commands/rpush
 
-func (pl *RedisLIFOPool) Push(i pool.Item) {
+func (pl *RedisLIFOPool) Push(pi pool.Item) {
 
-	pl.do("LPUSH", pl.key, i.Int())
+	i, err := pl.deflate(pi)
+
+	if err != nil {
+		return
+	}
+
+	pl.do("LPUSH", pl.key, i)
 
 	// error-checking?
 }
@@ -66,17 +102,12 @@ func (pl *RedisLIFOPool) Pop() (pool.Item, bool) {
 
 	rsp, err := pl.do("LPOP", pl.key)
 
-	if err != nil {
-		return nil, false
-	}
-
-	i, err := redigo.Int64(rsp, err)
+	pi, err := pl.inflate(rsp, err)
 
 	if err != nil {
 		return nil, false
 	}
 
-	pi := pool.NewIntItem(i)
 	return pi, true
 }
 

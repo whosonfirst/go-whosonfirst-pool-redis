@@ -14,7 +14,7 @@ func main() {
 
 	flag.Parse()
 
-	p, err := redis.NewRedisLIFOPool(*dsn)
+	p, err := redis.NewRedisLIFOIntPool(*dsn)
 
 	if err != nil {
 		log.Fatal(err)

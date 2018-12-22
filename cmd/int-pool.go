@@ -11,7 +11,7 @@ import (
 func main() {
 
 	var dsn = flag.String("dsn", "redis://localhost:6379", "The data source name (dsn) for connecting to Redis.")
-	var key = flag.String("key", "pool", "...")
+	var key = flag.String("key", "pool", "A valid Redis list key name")
 
 	flag.Parse()
 

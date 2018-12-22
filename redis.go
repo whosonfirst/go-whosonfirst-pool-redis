@@ -3,7 +3,6 @@ package redis
 import (
 	redigo "github.com/gomodule/redigo/redis"
 	"github.com/whosonfirst/go-whosonfirst-pool"
-	_ "log"
 )
 
 type DeflateFunc func(pool.Item) (interface{}, error)
@@ -18,7 +17,7 @@ type RedisLIFOPool struct {
 	deflate    DeflateFunc
 }
 
-func NewRedisLIFOIntPool(dsn string) (pool.LIFOPool, error) {
+func NewRedisLIFOIntPool(dsn string, key string) (pool.LIFOPool, error) {
 
 	deflate := func(i pool.Item) (interface{}, error) {
 
@@ -37,10 +36,10 @@ func NewRedisLIFOIntPool(dsn string) (pool.LIFOPool, error) {
 		return pi, nil
 	}
 
-	return NewRedisLIFOPool(dsn, deflate, inflate)
+	return NewRedisLIFOPool(dsn, key, deflate, inflate)
 }
 
-func NewRedisLIFOPool(dsn string, deflate DeflateFunc, inflate InflateFunc) (pool.LIFOPool, error) {
+func NewRedisLIFOPool(dsn string, key string, deflate DeflateFunc, inflate InflateFunc) (pool.LIFOPool, error) {
 
 	redis_pool := &redigo.Pool{
 		MaxActive: 1000,
@@ -60,13 +59,17 @@ func NewRedisLIFOPool(dsn string, deflate DeflateFunc, inflate InflateFunc) (poo
 
 	pl := RedisLIFOPool{
 		redis_pool: redis_pool,
-		key:        "debug",
+		key:        key,
 		inflate:    inflate,
 		deflate:    deflate,
 	}
 
 	return &pl, nil
 }
+
+// basically the interface for pool.LIFOPool should be changed
+// to expect errors all over the place but today that is not
+// the case... (20181222/thisisaaronland)
 
 // https://redis.io/commands/llen
 

@@ -11,10 +11,11 @@ import (
 func main() {
 
 	var dsn = flag.String("dsn", "redis://localhost:6379", "The data source name (dsn) for connecting to Redis.")
+	var key = flag.String("key", "pool", "...")
 
 	flag.Parse()
 
-	p, err := redis.NewRedisLIFOIntPool(*dsn)
+	p, err := redis.NewRedisLIFOIntPool(*dsn, *key)
 
 	if err != nil {
 		log.Fatal(err)
